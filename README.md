@@ -59,6 +59,10 @@ cd /local/github/domino-container
 ~/lp-recipe/verify.sh --lang TC
 ```
 
+After `apply-lp.sh --lang TC`, re-launching `./build.sh menu` and pressing `L` shows `(TC) Traditional Chinese` as a 7th option alongside the original six (press `t` to select):
+
+![build.sh LP submenu showing (TC) Traditional Chinese as a new option](screenshots/lp-menu-with-tc.png)
+
 ### Adding a new language (KO / SC / TH / …)
 
 Full walkthrough: [`docs/adding-new-language.md`](docs/adding-new-language.md). Summary:
@@ -135,6 +139,10 @@ cd /local/github/domino-container
 # 5. 驗證
 ~/lp-recipe/verify.sh --lang TC
 ```
+
+跑完 `apply-lp.sh --lang TC` 後，重新進入 `./build.sh menu` 按 `L`，LP 子選單就會在原本 6 種（DE/ES/FR/IT/NL/JA）之後多出 `(TC) Traditional Chinese` 第 7 個選項，按 `t` 即可選用：
+
+![patch 後 build.sh menu 的語言子選單多了 (TC) Traditional Chinese 第 7 個選項](screenshots/lp-menu-with-tc.png)
 
 ### 加新語言（KO / SC / TH 等）
 
