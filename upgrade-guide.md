@@ -90,14 +90,14 @@ That'd be a happy outcome. The companion `PR-DRAFT-tc.md` and `PR-DRAFT-framewor
 
 ## 繁體中文
 
-如果 `patch.py` 失敗顯示「expected N matches, found 0」，上游的 `build.sh` 或 `install_domino.sh` 在我們 patch 的區段改了。
+如果 `patch.py` 失敗顯示「expected N matches, found 0」，代表上游的 `build.sh` 或 `install_domino.sh` 在我們套用修補的區段改了。
 
 ### 診斷
 
 ```bash
 cd /local/github/domino-container
 
-# 自從 tested commit 之後改了什麼？
+# 自從測試過的 commit 之後改了什麼？
 git fetch origin
 git log --oneline 4734801..origin/main -- \
   build.sh \
@@ -105,26 +105,26 @@ git log --oneline 4734801..origin/main -- \
   dockerfiles/install_dir_common/software.txt \
   software/software.txt
 
-# 看 build.sh 的實際 diff
+# 看 build.sh 的實際差異
 git diff 4734801..origin/main -- build.sh
 
-# 看 anchor 在 latest 上游的位置
+# 看錨點在最新上游的位置
 git checkout origin/main -- build.sh
 grep -n 'LP_JA\|select_language_pack\|get_language_pack_display_name' build.sh
 ```
 
 ### 更新 `patch.py`
 
-`patch.py` 內 `patch_buildsh()` 函式用 4 個 anchor 字串。每個 anchor 由一小段上游 context 組成。更新方式：
+`patch.py` 內的 `patch_buildsh()` 函式用 4 個錨點字串。每個錨點由一小段上游的程式碼上下文組成。更新方式：
 
-1. 找新的上游周邊 code（例如 `LP_JA="Japanese"` 現在是不是在別處？通常不會，但要查）
-2. 如果 anchor 不再唯一，把 context 拉長
-3. 如果 anchor 區塊結構改了（例如上游把 `case` 改成 `if`），patch 邏輯本身要重做
+1. 找新的上游周邊程式碼（例如 `LP_JA="Japanese"` 現在是不是在別處？通常不會，但要查）
+2. 如果錨點不再唯一，把上下文拉長
+3. 如果錨點所在區塊結構改了（例如上游把 `case` 改成 `if`），修補邏輯本身要重做
 
-四個 anchor：
-- **P1**：`'  local LP_JA="Japanese"\n'`（兩個函式各一，預期 count=2）
+四個錨點：
+- **P1**：`'  local LP_JA="Japanese"\n'`（兩個函式各一，預期出現 2 次）
 - **P2**：`JA) ... ;;` 區塊接到 `*)` 之前
-- **P3**：子選單內 `print_lp "JA" "$LP_JA"` 行
+- **P3**：子選單內 `print_lp "JA" "$LP_JA"` 那行
 - **P4**：`j) ... ;;` 區塊接到 `esac` 之前
 
 跑測試：
@@ -134,40 +134,40 @@ rm -rf /tmp/dc-test
 ./apply-lp.sh --lang TC --target /tmp/dc-test/domino-container
 cd /tmp/dc-test/domino-container
 
-# 快速 sanity check（不用真 build）
+# 快速檢查（不用真的 build）
 grep -c 'LP_TC=' build.sh                                            # 預期: 2
 grep -c 'TC)\|t)' build.sh                                            # 預期: ≥3
 grep -c 'tc) DOMLP_LANG_LCASE=zh-TW' dockerfiles/install_dir_domino/install_domino.sh  # 預期: 1
-grep 'domlp|TC-14.5.1' software/software.txt                          # 預期: 1 match
+grep 'domlp|TC-14.5.1' software/software.txt                          # 預期: 1 個結果
 ```
 
-Sanity check 過了，跑一次真 build（~5 分鐘），然後更新 [`tested-against.md`](tested-against.md) 加新 commit。
+檢查過了，跑一次真的 build（約 5 分鐘），然後更新 [`tested-against.md`](tested-against.md) 加新 commit。
 
-### 如果 patches 套用 OK 但 build 用其他方式壞了？
+### 如果修補套用 OK 但 build 以其他方式失敗？
 
-不同類型的失敗（非 anchor 相關）表示上游的內部邏輯改了：
-- LP installer 預期不同 INI key？ → 改 `install_domino.sh` patch
-- Software check 變成強制驗 hash？ → build 時設 `CHECK_HASH=` 環境變數
-- Build step 改名？ → 仔細讀 docker logs
+不同類型的失敗（非錨點相關）表示上游的內部邏輯改了：
+- LP 安裝程式預期不同的 INI 鍵？ → 改 `install_domino.sh` 修補
+- 軟體檢查變成強制驗 hash？ → build 時設 `CHECK_HASH=` 環境變數
+- Build 步驟改名？ → 仔細讀 docker logs
 
-這些超出「只更新 anchor」範圍；可能需要 recipe 重做。請開 issue 附 build log。
+這些超出「只更新錨點」範圍；可能需要重新設計本工具。請開 issue 並附上 build 紀錄。
 
 ### 為什麼這應該很少發生
 
-被 patch 的區段 — `select_language_pack()`、`get_language_pack_display_name()`、LP install 段、`software.txt` 格式 — 自 2022 年以來都穩定。Daniel 最近的 `main` commits 通常是：
+被修補的區段 — `select_language_pack()`、`get_language_pack_display_name()`、LP 安裝段、`software.txt` 格式 — 自 2022 年以來都很穩定。Daniel 最近 commit 到 `main` 的內容通常是：
 
 - 新產品版本條目
 - 不相關區域的 bug 修復（Traveler、SafeLinx、OnTime）
-- README / typo
+- README ／拼字修正
 
-所以 `patch.py` 在大多數上游 commits 應該繼續可用。真的壞了的時候，會**明顯**壞（assertion fail 加清楚訊息），不會默默壞。
+所以 `patch.py` 在大多數上游 commit 上應該繼續可用。真的壞了的時候，會**明顯**壞（assert 失敗加清楚的錯誤訊息），不會默默壞。
 
-### Happy path：上游原生支援
+### 最理想的結局：上游原生支援
 
-如果 HCL 合併了原生支援 TC/SC/KO 等語言的 PR，本 recipe 就過時了。屆時：
+如果 HCL 合併了原生支援 TC／SC／KO 等語言的 PR，本工具就過時了。屆時：
 
 1. 加一個 `DEPRECATED.md`
-2. 更新 README 第一段：「✅ Upstream now natively supports these languages.」
-3. 從 GitHub UI archive 這個 repo
+2. 更新 README 第一段：「✅ 上游已原生支援這些語言。」
+3. 從 GitHub 介面封存這個 repo
 
-那會是最好的結局。本 repo 內的 `PR-DRAFT-tc.md` 和 `PR-DRAFT-framework.md` 就是 recipe 對「促成這結局」的貢獻。
+那會是最好的結局。本 repo 內的 `PR-DRAFT-tc.md` 和 `PR-DRAFT-framework.md` 就是本工具對「促成這結局」的貢獻。

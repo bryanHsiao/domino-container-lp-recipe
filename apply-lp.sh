@@ -5,8 +5,8 @@
 # at the tested commit, reset patched files, then run patch.py for chosen
 # languages.
 #
-# 一鍵 LP 整合：clone（或使用既有）上游 domino-container 至 tested commit，
-# reset 已 patched 的檔案，再為指定語言跑 patch.py。
+# 一鍵 LP 整合：clone（或使用既有）上游 domino-container 到測試過的 commit，
+# 把受影響的檔案還原為原版，再為指定語言跑 patch.py。
 #
 # Usage / 用法:
 #   ./apply-lp.sh --lang TC                                          # default target
@@ -92,7 +92,7 @@ fi
 
 # --- Step 2: reset patched files to vanilla ---
 # This makes patch.py idempotent across re-runs / multi-lang changes.
-# 還原已 patched 的檔案為 vanilla，讓 patch.py 在重跑 / 多語言切換時保持冪等。
+# 把受影響的檔案還原為原版，讓 patch.py 在重跑／多語言切換時保持冪等。
 echo
 echo "[2/3] Resetting LP-affected files to vanilla (so patch.py runs on clean state)..."
 cd "$TARGET"
@@ -135,6 +135,6 @@ Next steps / 接下來:
          $SCRIPT_DIR/verify.sh --lang <CODE>
 
 ⚠️  If you've already done OneTouch Setup on /local/notesdata, rebuilding
-   alone won't make existing .nsf files use the new LP. See the companion SOP:
-   https://github.com/bryanHsiao/domino-container-wsl2-sop  (§12.6)
+   alone won't make existing .nsf files use the new LP. See:
+   $SCRIPT_DIR/docs/sync-trap-caveat.md
 EOF

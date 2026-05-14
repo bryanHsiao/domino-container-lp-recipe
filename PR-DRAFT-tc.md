@@ -86,4 +86,3 @@ Closes #55 partially — addresses the structural ask for LP menu extensibility 
 ### Companion materials
 
 - Community recipe (this PR's source, plus apply-script for users who can't wait for upstream): [`bryanHsiao/domino-container-lp-recipe`](https://github.com/bryanHsiao/domino-container-lp-recipe)
-- Full WSL2 SOP including this integration: [`bryanHsiao/domino-container-wsl2-sop`](https://github.com/bryanHsiao/domino-container-wsl2-sop)

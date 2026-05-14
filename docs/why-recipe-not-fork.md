@@ -50,44 +50,44 @@ For "I patched 4 files in someone else's repo and want to share with my team", a
 
 ## 繁體中文
 
-整合社群 LP patch 有三種模式可選：
+整合社群 LP 修補有三種模式可選：
 
 | 模式 | 是什麼 |
 |---|---|
-| **Fork** | 長期同步上游的 mirror，在上面 commit patches |
-| **Recipe**（本 repo） | 小型腳本，對 fresh 的上游 clone 動態套 patch |
-| **Patch series** | 用 `git am` 套 `git format-patch` 檔 |
+| **Fork** | 長期同步上游的鏡像，在上面 commit 修補 |
+| **動態修補**（本工具走這條路線） | 小型腳本，對乾淨的上游 clone 動態套用修補 |
+| **修補檔系列** | 用 `git am` 套用 `git format-patch` 產生的檔案 |
 
-### 為什麼本 repo 選 recipe
+### 為什麼本工具選動態修補
 
-改動範圍很小：4 個檔案、約 50 行。上游被別人（`Daniel-Nashed`）積極維護，且**走 non-PR 流程**（直接 commit 到 `main`）。fork 會變成「99% 上游 code + 1% 我們的」，產生持續的 rebase 噪音。
+改動範圍很小：4 個檔案、約 50 行。上游被別人（`Daniel-Nashed`）積極維護，且**走非 PR 流程**（直接 commit 到 `main`）。fork 會變成「99% 上游程式碼 + 1% 我們的」，產生持續的 rebase 噪音。
 
-Recipe **把「我們改什麼」和「整個 codebase」分離**，對「改動小 + 上游持續變動」的情境是對的抽象。
+動態修補只記錄「我們改什麼」，不複製整份上游程式碼。改動小的時候比 fork 輕、跟得上上游變動。
 
 ### 比較
 
-| 面向 | Fork | Recipe | Patch series |
+| 面向 | Fork | 動態修補 | 修補檔系列 |
 |---|---|---|---|
-| 使用者：首次使用 | `clone fork && build` | `clone recipe && apply && build` | `clone upstream && clone series && git am && build` |
-| 使用者：上游有改動之後 | 重 clone fork — 可能已過期 | `apply-lp.sh` 永遠用 tested commit | 重新發布 patch series |
-| 維護者：上游改了我們**不** patch 的檔案 | rebase 噪音 | 無事 | 無事 |
-| 維護者：上游改了我們**有** patch 的檔案 | rebase + 逐檔解 conflict | 改 `patch.py` 內 1 個 anchor 字串 | 從新 fork 重產 patch |
-| Repo 大小 | 繼承 600+ 上游 commits + history | ~300 行 code/docs | ~10 KB patches |
-| 維護者忙 3 個月 | fork 默默過期 | recipe pin 在 last tested commit；使用者看到「tested vs HEAD 不同」警告 | series 可能對較新上游無法套用 |
-| 對 HCL 發 PR | fork 結構本來就是 PR-ready | 從 temp branch 跑 `git format-patch` | series 本身就是 PR |
-| 「我只想跑起來」的心智模型 | 「用 fork 當我的 upstream」 | 「用上游 + 這個工具」 | 「對上游套這些 patches」 |
+| 使用者：首次使用 | `clone fork && build` | `clone 本工具 && 套用 && build` | `clone 上游 && clone 修補系列 && git am && build` |
+| 使用者：上游有改動之後 | 重新 clone fork — 可能已過期 | `apply-lp.sh` 永遠用測試過的 commit | 重新發布修補檔系列 |
+| 維護者：上游改了我們**不**修補的檔案 | rebase 噪音 | 無事 | 無事 |
+| 維護者：上游改了我們**有**修補的檔案 | rebase + 逐檔解衝突 | 改 `patch.py` 內 1 個錨點字串 | 從新 fork 重新產生修補檔 |
+| Repo 大小 | 繼承上游 600+ commits + 完整歷史 | 約 300 行程式碼／文件 | 約 10 KB 修補檔 |
+| 維護者忙 3 個月 | fork 默默過期 | 本工具仍指向最後測試過的 commit；使用者看到「tested 與 HEAD 不同」警告 | 修補檔系列可能對較新上游無法套用 |
+| 對 HCL 發 PR | fork 結構本來就適合發 PR | 從暫存分支跑 `git format-patch` | 修補檔系列本身就是 PR |
+| 「我只想跑起來」的心智模型 | 「用 fork 當我的上游」 | 「用上游 + 這個工具」 | 「對上游套這些修補」 |
 
 ### 什麼情況用 fork 反而比較對
 
 Fork 適合：
-- Fork 本身就是產品（例如 Forgejo ← Gitea、Valkey ← Redis）
+- Fork 本身就是產品（例如 Forgejo 之於 Gitea、Valkey 之於 Redis）
 - 你承諾長期同步上游
-- Patches 大到「commit 比 string anchor 更舒服」
-- 你需要發布 binary releases
+- 修補大到「以 commit 形式管理比用字串錨點舒服」
+- 你需要發布二進位 releases
 
-對「我在別人的 repo 改 4 個檔案、想分享給同事」這種情境，recipe 更輕、對 scope 更誠實、長期更健康。
+對「我在別人的 repo 改 4 個檔案、想分享給同事」這種情境，動態修補更輕（repo 內只有修補腳本、不夾帶整份上游程式碼）、長期維護成本也低。
 
-### Hybrid：本 repo 兩種形態都有
+### 混合：本 repo 兩種形態都有
 
-- **`patch.py` + `apply-lp.sh`** — 給終端使用者（recipe UX）
-- **`PR-DRAFT-tc.md`** — 給上游 PR（patch-series 內容，可用 `git format-patch` 一步轉成 PR）
+- **`patch.py` + `apply-lp.sh`** — 給終端使用者（動態修補體驗）
+- **`PR-DRAFT-tc.md`** — 給上游 PR（修補檔系列內容，可用 `git format-patch` 一步轉成 PR）

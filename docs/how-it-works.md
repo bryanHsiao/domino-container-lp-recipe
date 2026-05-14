@@ -130,43 +130,43 @@ This recipe is tested against upstream commit [`4734801`](https://github.com/HCL
 
 ### LP 整合的三層
 
-| 層級 | 檔案 | 本 recipe 做的事 |
+| 層級 | 檔案 | 本工具做的事 |
 |---|---|---|
-| 1. UI / menu | `build.sh` | 把語言加入 LP 子選單，讓使用者能選 |
-| 2. 安裝邏輯 | `dockerfiles/install_dir_domino/install_domino.sh` | 把非 ISO 短碼對應到 LP installer 的內部碼 |
-| 3. Manifest | `software/software.txt` + `dockerfiles/install_dir_common/software.txt` | 告訴 `build.sh` 哪個 LP tar 對應哪個語言/版本 |
+| 1. 介面／選單 | `build.sh` | 把語言加入 LP 子選單，讓使用者能選 |
+| 2. 安裝邏輯 | `dockerfiles/install_dir_domino/install_domino.sh` | 把非 ISO 短碼對應到 LP 安裝程式的內部碼 |
+| 3. 清單檔 | `software/software.txt` + `dockerfiles/install_dir_common/software.txt` | 告訴 `build.sh` 哪個 LP tar 檔對應哪個語言／版本 |
 
-三層都要做。漏 manifest → `Download for [domlp] [XX-VER] not found!`；漏 install_domino.sh → `Cannot find LPLog.txt`；漏 build.sh → menu 不顯示新語言。
+三層都要做。漏清單檔 → `Download for [domlp] [XX-VER] not found!`；漏 `install_domino.sh` → `Cannot find LPLog.txt`；漏 `build.sh` → 選單不顯示新語言。
 
-### 第 1 層：build.sh — 4 處錨點 edit
+### 第 1 層：build.sh — 4 處錨點修補
 
-LP menu 寫死在兩個函式：
+LP 選單寫死在兩個函式內：
 
 ```
 get_language_pack_display_name()  ← 把 SELECT_DOMLP_LANG 對應到顯示名稱
 select_language_pack()            ← 印子選單、讀按鍵
 ```
 
-對每個語言 XX，recipe 插入：
+對每個語言 XX，本工具插入：
 
 1. **P1**：`local LP_XX="<顯示名稱>"`，**兩個函式都加**（在 `LP_JA` 之後）
-2. **P2**：`XX) DISPLAY_DOMLP="$LP_XX" ;;` case 在 `get_language_pack_display_name()`
-3. **P3**：`print_lp "XX" "$LP_XX"` 在 `select_language_pack()`
-4. **P4**：`<keypress>) SELECT_DOMLP_LANG=XX ;;` case 在 `select_language_pack()`
+2. **P2**：`XX) DISPLAY_DOMLP="$LP_XX" ;;` 條件分支加在 `get_language_pack_display_name()` 內
+3. **P3**：`print_lp "XX" "$LP_XX"` 加在 `select_language_pack()` 內
+4. **P4**：`<按鍵字母>) SELECT_DOMLP_LANG=XX ;;` 條件分支加在 `select_language_pack()` 內
 
-所有 anchor 都跟 `JA`（上游最後一個內建語言）有關。多個語言一起套時，腳本把每個新語言夾在 `JA` 跟下個 case（`*)` 或 `esac`）之間，順序由語言代號的排序保留。
+所有錨點都跟 `JA`（上游最後一個內建語言）有關。多個語言一起套用時，腳本把每個新語言夾在 `JA` 跟下個分支（`*)` 或 `esac`）之間，順序由語言代號的字母順序決定（例如同時套 TC 跟 KO，KO 會排在 TC 之前，因為字母順序 K 在 T 前面）。
 
-### 第 2 層：install_domino.sh — case 對應
+### 第 2 層：install_domino.sh — 條件對應
 
-`install_domino.sh` 用 `DOMLP_VER` 的前綴 lowercase 來推 LP installer 的語言碼：
+`install_domino.sh` 用 `DOMLP_VER` 的前綴轉小寫來推導 LP 安裝程式的語言碼：
 
 ```bash
 local DOMLP_LANG_LCASE=$(echo "$DOMLP_VER" | cut -d"-" -f1 | awk '{print tolower($0)}')
 ```
 
-對 `DOMLP_VER=TC-14.5.1`，會得 `tc`。LP installer（LNXDomLP）從 silent install INI 讀到 `LANGUAGES_00=tc`。但 LNXDomLP 內部 `LangCodeList` 寫的是 `LangCodeList("zh-TW") = "TC"` — 它期待 `zh-TW`，不是 `tc`。所以 silent install 執行了但什麼都沒裝，也沒寫 `LPLog.txt`。Build 後面就死在 `Cannot find LPLog.txt in /opt/hcl/domino`。
+對 `DOMLP_VER=TC-14.5.1`，會得到 `tc`。LP 安裝程式（LNXDomLP）從 silent install INI 讀到 `LANGUAGES_00=tc`。但 LNXDomLP 內部 `LangCodeList` 寫的是 `LangCodeList("zh-TW") = "TC"` — 它期待 `zh-TW`，不是 `tc`。所以 silent install 跑了卻什麼都沒裝，也沒寫 `LPLog.txt`。Build 後面就死在 `Cannot find LPLog.txt in /opt/hcl/domino`。
 
-Recipe 在 lowercase 賦值後插入 case statement 把非 ISO 碼對應過去：
+本工具在小寫賦值後插入 `case` 區塊，把非 ISO 碼對應到 LP 安裝程式要的碼：
 
 ```bash
 case "$DOMLP_LANG_LCASE" in
@@ -175,18 +175,18 @@ case "$DOMLP_LANG_LCASE" in
 esac
 ```
 
-對 `installer_code` 跟 lowercased 短碼相同的語言（例如 `KO` → `ko`），不需要對應，recipe 不會加那行。
+對 `installer_code` 跟小寫短碼相同的語言（例如 `KO` → `ko`），不需要對應，本工具不會加那行。
 
-### 第 3 層：software.txt — manifest
+### 第 3 層：software.txt — 清單檔
 
 上游有**兩份** `software.txt`：
 
 | 檔案 | 誰用 | 何時 |
 |---|---|---|
-| `software/software.txt` | `build.sh` | Host 端 pre-build sanity check（「`/local/software/` 內有這檔嗎？」）|
-| `dockerfiles/install_dir_common/software.txt` | container 內的 `install_domino.sh` | Container 端：`grep "domlp\|XX-VER\|"` 找對應 LP tar 檔名 |
+| `software/software.txt` | `build.sh` | host 端 build 前的檢查（「`/local/software/` 內有這檔嗎？」）|
+| `dockerfiles/install_dir_common/software.txt` | container 內的 `install_domino.sh` | container 端：用 `grep "domlp\|XX-VER\|"` 找對應的 LP tar 檔名 |
 
-兩份內容相同但用途不同。Recipe 對兩份都 append 同一行：
+兩份內容相同但用途不同。本工具對兩份都 append 同一行：
 
 ```
 domlp|XX-VER|Domino_VER_SLP_<Lang>.tar|<hcl_id>|<sha256>
@@ -197,11 +197,11 @@ domlp|XX-VER|Domino_VER_SLP_<Lang>.tar|<hcl_id>|<sha256>
 各欄位：
 - `類型` = `domlp`（Domino Language Pack）
 - `語言-版本` = 例如 `TC-14.5.1`
-- `檔名` = `/local/software/` 內 tar 檔名
-- `hcl_id` = HCL 內部 5 字識別字（對外不公開；recipe 用 `TChineseManualEntry01` 等 placeholder）
-- `sha256` = tar 的 SHA-256（只有 `CHECK_HASH=yes` 才驗，預設不驗）
+- `檔名` = `/local/software/` 內的 tar 檔名
+- `hcl_id` = HCL 內部 5 字識別字（對外不公開；本工具用 `TChineseManualEntry01` 等預留值代替）
+- `sha256` = tar 檔的 SHA-256（只有 `CHECK_HASH=yes` 才驗，預設不驗）
 
-### Registry 怎麼對應到 code edit
+### 語言註冊表怎麼對應到實際程式碼修改
 
 對 `language_registry.py` 內每個條目：
 
@@ -209,8 +209,8 @@ domlp|XX-VER|Domino_VER_SLP_<Lang>.tar|<hcl_id>|<sha256>
 "TC": {
     "status": "verified",
     "display_name": "Traditional Chinese",  # → P1 的 LP_TC 值
-    "keypress": "t",                        # → P4 的 case 字母
-    "installer_code": "zh-TW",              # → install_domino.sh case 內容
+    "keypress": "t",                        # → P4 的條件字母
+    "installer_code": "zh-TW",              # → install_domino.sh 的條件對應內容
     "manifest_entries": {
         "14.5.1": {
             "tar": "Domino_14.5.1_SLP_TChinese.tar",
@@ -222,24 +222,24 @@ domlp|XX-VER|Domino_VER_SLP_<Lang>.tar|<hcl_id>|<sha256>
 ```
 
 - `display_name` → `LP_TC="..."` 變數值
-- `keypress` → `t)` case
-- `installer_code`（與 `code.lower()` 不同時）→ install_domino.sh case 對應
-- `manifest_entries[VER]` → software.txt 條目
+- `keypress` → `t)` 條件分支
+- `installer_code`（當與 `code.lower()` 不同時）→ `install_domino.sh` 的條件對應
+- `manifest_entries[版本]` → `software.txt` 條目
 
 ### 冪等性策略
 
-Recipe 永遠對 **vanilla 上游**套 patch：
+本工具**永遠對原版上游套用修補**：
 
-1. `apply-lp.sh` 先對 4 個受影響檔案跑 `git checkout --`
-2. 然後 `patch.py` 對 known-vanilla 狀態操作
+1. `apply-lp.sh` 先對 4 個受影響的檔案跑 `git checkout --`
+2. 然後 `patch.py` 在已知乾淨的狀態上操作
 
 所以：
 - 用同樣 `--lang` 重跑沒問題 — 結果一致
-- 加新語言（例如先前 `--lang TC`，現在 `--lang TC,KO`）會兩個都重套
-- 不需要「增量 anchor 追蹤」這種複雜度
+- 加新語言（例如先前 `--lang TC`，現在 `--lang TC,KO`）會兩個都重新套用
+- 不需要處理「先套 TC、再加 KO 時，KO 的錨點要避開 TC 已修補的位置」這種麻煩
 
-代價是：那 4 個檔案的本地手動修改不會保留。如果你還對 `build.sh` 做了其他客製，跑 `apply-lp.sh` 前先把改動存到別處。
+代價是：那 4 個檔案的本地手動修改不會保留。如果你還對 `build.sh` 做了其他客製化，跑 `apply-lp.sh` 前先把改動存到別處。
 
-### Tested 上游版本
+### 已測試的上游版本
 
-本 recipe 針對上游 commit [`4734801`](https://github.com/HCL-TECH-SOFTWARE/domino-container/commit/4734801)（"Add Domino 12.0.2FP8"）測試。上游有改動時，anchor 可能要更新 — 見 [`../upgrade-guide.md`](../upgrade-guide.md)。
+本工具針對上游 commit [`4734801`](https://github.com/HCL-TECH-SOFTWARE/domino-container/commit/4734801)（"Add Domino 12.0.2FP8"）測試。上游有改動時錨點可能要更新 — 見 [`../upgrade-guide.md`](../upgrade-guide.md)。

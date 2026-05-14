@@ -141,7 +141,7 @@ The recipe author will review and merge — everyone else who wants KO can then 
 | 5 (build) — `Cannot find LPLog.txt` | Wrong `installer_code` despite Step 2 | Try variants: `ko-KR`, `Korean`, etc.; update registry; retry |
 | 5 — `Download for [domlp] [KO-14.5.1] not found!` | Container-side `software.txt` missing entry | Check `dockerfiles/install_dir_common/software.txt` |
 | 6 — `verify.sh` finds 0 `ko` resources | Wrong `installer_code` deployed silently | Same as the Cannot-find-LPLog case |
-| New build OK but existing server still English | "Data already installed" sync trap | See SOP §12.6 — needs fresh data dir |
+| New build OK but existing server still English | "Data already installed" sync trap | See [`../docs/sync-trap-caveat.md`](../docs/sync-trap-caveat.md) — needs fresh data dir |
 
 ---
 
@@ -149,16 +149,16 @@ The recipe author will review and merge — everyone else who wants KO can then 
 
 ### 情境
 
-Alice 公司用 Domino 搭配韓文 Windows client。她從 HCL FlexNet 拿到 `Domino_14.5.1_SLP_Korean.tar`，希望 container build 內含 KO。
+Alice 公司用 Domino 搭配韓文 Windows 用戶端。她從 HCL FlexNet 拿到 `Domino_14.5.1_SLP_Korean.tar`，希望 container build 內含 KO。
 
-### 步驟 1 — 拿 recipe
+### 步驟 1 — 拿本工具
 
 ```bash
 git clone https://github.com/bryanHsiao/domino-container-lp-recipe.git ~/lp-recipe
 cd ~/lp-recipe
 ```
 
-### 步驟 2 — 找 installer code
+### 步驟 2 — 找 LP 安裝程式的語言碼
 
 ```bash
 mkdir -p /tmp/kolp && cd /tmp/kolp
@@ -167,18 +167,18 @@ tar xf Domino_14.5.1_SLP_Korean.tar
 strings LNXDomLP | grep -iE 'LangCodeList|^ko$|korean'
 ```
 
-預期輸出（示例 — 實際碼以跑出來為準）：
+預期輸出（示例 — 實際語言碼以跑出來的結果為準）：
 
 ```
 	LangCodeList("ko") = "KO"
 	$SLPBLD$/ko/kitfiles/...
 ```
 
-所以 `installer_code = "ko"`。因為 `code.lower() == "ko" == installer_code`，KO 不需要 install_domino.sh case 對應。（對照 TC：`tc != zh-TW`，所以需要對應。）
+所以 `installer_code = "ko"`。因為 `code.lower() == "ko" == installer_code`，KO 不需要 `install_domino.sh` 的條件對應。（對照 TC：`tc != zh-TW`，所以需要對應。）
 
-### 步驟 3 — 更新 registry
+### 步驟 3 — 更新語言註冊表
 
-編輯 `~/lp-recipe/language_registry.py`，把 KO 從 template 改成 verified：
+編輯 `~/lp-recipe/language_registry.py`，把 KO 從 `template` 改成 `verified`：
 
 ```python
 "KO": {
@@ -189,14 +189,14 @@ strings LNXDomLP | grep -iE 'LangCodeList|^ko$|korean'
     "manifest_entries": {
         "14.5.1": {
             "tar": "Domino_14.5.1_SLP_Korean.tar",
-            "hcl_id": "KoreanManualEntry01",       # placeholder, build.sh 不驗
+            "hcl_id": "KoreanManualEntry01",       # 預留值，build.sh 不驗
             "sha256": "<`sha256sum Domino_14.5.1_SLP_Korean.tar` 的輸出>",
         },
     },
 },
 ```
 
-### 步驟 4 — 套用 patch
+### 步驟 4 — 套用修補
 
 ```bash
 ~/lp-recipe/apply-lp.sh --lang KO
@@ -262,22 +262,22 @@ naming to docker.io/hclcom/domino:14.5.1 done
 ```bash
 cd ~/lp-recipe
 git checkout -b add-ko-verified
-# （你的 registry 改動已經存好）
+# （你的註冊表改動已經存好）
 git add language_registry.py tested-against.md
 # 編輯 tested-against.md 加 KO 那列
 git commit -m "Verify Korean LP integration on Domino 14.5.1"
 gh pr create
 ```
 
-Recipe 作者會 review + merge — 其他想要 KO 的人之後就能直接用。
+工具作者會審閱 + 合併 — 其他想要 KO 的人之後就能直接用。
 
 ### 失敗時怎麼辦
 
 | 失敗的步驟 | 可能原因 | 下一步 |
 |---|---|---|
-| 2（找 code）| strings 輸出沒 `LangCodeList` 命中 | 試更廣的 grep；用 `strings AIXDomLP` 看；到 [`#55`](https://github.com/HCL-TECH-SOFTWARE/domino-container/issues/55) 問 |
-| 4（套用）| Anchor 不符（上游改了）| 見 [`../upgrade-guide.md`](../upgrade-guide.md) |
-| 5（build）— `Cannot find LPLog.txt` | 步驟 2 找到的 `installer_code` 錯了 | 試變體：`ko-KR`、`Korean`...，更新 registry，重試 |
+| 2（找語言碼）| strings 輸出沒有 `LangCodeList` 命中 | 試更廣的 grep；用 `strings AIXDomLP` 看；到 [`#55`](https://github.com/HCL-TECH-SOFTWARE/domino-container/issues/55) 問 |
+| 4（套用）| 錨點不符（上游改了）| 見 [`../upgrade-guide.md`](../upgrade-guide.md) |
+| 5（build）— `Cannot find LPLog.txt` | 步驟 2 找到的 `installer_code` 不對 | 試變體：`ko-KR`、`Korean` 等等，更新註冊表，重試 |
 | 5 — `Download for [domlp] [KO-14.5.1] not found!` | container 端 `software.txt` 沒條目 | 看 `dockerfiles/install_dir_common/software.txt` |
-| 6 — `verify.sh` 找不到 `ko` 資源 | `installer_code` 不對但 installer 沒報錯 | 同上 Cannot-find-LPLog 處理 |
-| 新 build 成功但既有 server 介面仍英文 | 「Data already installed」同步陷阱 | 見 SOP §12.6 — 需 fresh data dir |
+| 6 — `verify.sh` 找不到 `ko` 資源 | `installer_code` 不對但安裝程式沒報錯 | 同上「Cannot find LPLog」的處理方式 |
+| 新 build 成功但既有 server 介面仍英文 | 「Data already installed」同步陷阱 | 見 [`../docs/sync-trap-caveat.md`](../docs/sync-trap-caveat.md) — 需要清空資料目錄 |

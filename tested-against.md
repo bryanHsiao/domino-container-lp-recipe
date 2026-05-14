@@ -30,36 +30,36 @@ If you want to try a newer commit, run `apply-lp.sh` with `FORCE=1`. If it succe
 
 ### Contributing a tested combination
 
-If you've successfully used this recipe with a new combination (newer Domino, different Linux distro, Podman instead of Docker, a different language), please open a PR adding your row. Even a partial success ("builds but the SOP §12.6 sync trap hits") is useful to document.
+If you've successfully used this recipe with a new combination (newer Domino, different Linux distro, Podman instead of Docker, a different language), please open a PR adding your row. Even a partial success ("builds but the [sync trap](docs/sync-trap-caveat.md) hits") is useful to document.
 
 ---
 
 ## 繁體中文
 
-本 recipe 在下列組合上驗證過。每一列代表 recipe 作者或貢獻者跑過一次完整流程。
+本工具在下列組合上驗證過。每一列代表作者或貢獻者實際跑過一次完整流程。
 
-| Recipe 版 | 上游 commit | Domino | 語言 | OS | Container engine | 結果 | 備註 |
+| 工具版本 | 上游 commit | Domino | 語言 | 作業系統 | 容器引擎 | 結果 | 備註 |
 |---|---|---|---|---|---|---|---|
-| v0.1 | [`4734801`](https://github.com/HCL-TECH-SOFTWARE/domino-container/commit/4734801) | 14.5.1 | **TC** | Ubuntu 24.04.4 (WSL2) | Docker 29.4.3 | ✅ Build + fresh-setup 驗證過 | `names.nsf` 繁中；console.log 含「網域監督」|
+| v0.1 | [`4734801`](https://github.com/HCL-TECH-SOFTWARE/domino-container/commit/4734801) | 14.5.1 | **TC** | Ubuntu 24.04.4 (WSL2) | Docker 29.4.3 | ✅ Build + 重做 setup 驗證過 | `names.nsf` 顯示繁中；`console.log` 含「網域監督」|
 
 ### 「驗證過」是什麼意思
 
 每一列要算「驗證過」需滿足全部條件：
 
-1. ✅ `apply-lp.sh --lang <X>` 跑完（所有 anchor 找到）
+1. ✅ `apply-lp.sh --lang <X>` 跑完（所有錨點找到）
 2. ✅ `./build.sh menu` 在 LP 子選單顯示該語言
-3. ✅ `./build.sh domino <VER> -domlp=<X>` 跑完成功
-4. ✅ Image 的 `DominoContainer.addons` label 含 `languagepack=<X>`
+3. ✅ `./build.sh domino <版本> -domlp=<X>` 跑完成功
+4. ✅ Image 的 `DominoContainer.addons` 標籤含 `languagepack=<X>`
 5. ✅ Image 內含該語言資源目錄（例如 `zh-tw`）
-6. ✅ LP install log 記錄 `Selected Language Packs are successfully installed`
-7. ✅ Fresh data dir 上跑 OneTouch Setup，建出的資料庫 form/view 名是該語言
+6. ✅ LP 安裝紀錄寫了 `Selected Language Packs are successfully installed`
+7. ✅ 在乾淨的資料目錄上跑 OneTouch Setup，建出的資料庫 form／view 名稱是該語言
 
-### 為什麼要 pin 在 tested commit？
+### 為什麼要鎖定在已測試的 commit？
 
-上游 `domino-container` 維護者（`@Daniel-Nashed`）直接 commit 到 `main`（外部 PR 很少 — 最後一個合併的外部 PR 是 2024-07）。`main` 隨時可能變，不同測試者看到的版本可能不同。Pin 在已知 good commit 給可重現結果。
+上游 `domino-container` 維護者（`@Daniel-Nashed`）直接 commit 到 `main`（外部 PR 很少 — 最後一個合併的外部 PR 是 2024-07）。`main` 隨時可能變，不同測試者看到的版本可能不同。鎖定在已知正常的 commit 才能得到可重現結果。
 
 想試較新的 commit，跑 `apply-lp.sh` 時加 `FORCE=1`。成功的話請發 PR 加一列。
 
 ### 貢獻測試組合
 
-如果你用本 recipe 在新組合上跑成功（較新 Domino、不同 Linux distro、Podman 取代 Docker、不同語言），請發 PR 加你的一列。即使只是部分成功（「build OK 但踩 SOP §12.6 同步陷阱」），也對其他人有參考價值。
+如果你用本工具在新組合上跑成功（較新 Domino、不同 Linux 發行版、Podman 取代 Docker、不同語言），請發 PR 加你的一列。即使只是部分成功（「build OK 但踩到 [同步陷阱](docs/sync-trap-caveat.md)」），也對其他人有參考價值。

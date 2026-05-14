@@ -16,7 +16,7 @@
 
 A small CLI tool that patches an upstream `HCL-TECH-SOFTWARE/domino-container` clone to add support for languages that aren't in the original 6 (DE/ES/FR/IT/NL/JA). The patches are surgical (4 anchored edits in `build.sh`, 1 in `install_domino.sh`, 2 in `software.txt`), so they apply cleanly and you can audit them in 5 minutes.
 
-This is **a recipe, not a fork**: you `git clone` upstream fresh and run our script. When upstream changes, you re-run; if anchors no longer match, the script tells you exactly what to fix. No long-running fork drift.
+This is **a recipe, not a fork**: you `git clone` upstream fresh and run our script. When upstream changes, you just re-run. If upstream has touched the lines our patches target, the script halts and prints exactly what's wrong — something like `expected 2 matches in build.sh, found 0`. Follow [`upgrade-guide.md`](upgrade-guide.md) to adjust the anchor strings in `patch.py` (a small edit, not a fork-wide rebase). No long-running fork drift.
 
 → Why a recipe and not a fork? See [`docs/why-recipe-not-fork.md`](docs/why-recipe-not-fork.md).
 
@@ -72,7 +72,7 @@ Full walkthrough: [`docs/adding-new-language.md`](docs/adding-new-language.md). 
 
 If you've already done OneTouch Setup on this server, rebuilding with this recipe **won't make existing databases Chinese / Korean / etc.** Domino container's entrypoint detects `Data already installed for 14050100` and skips template deployment. You need either a fresh data dir + new OneTouch Setup, or manual Replace Design on each `.nsf`.
 
-Detailed discussion in the companion SOP: [`bryanHsiao/domino-container-wsl2-sop`](https://github.com/bryanHsiao/domino-container-wsl2-sop) §12.6.
+Detailed discussion in [`docs/sync-trap-caveat.md`](docs/sync-trap-caveat.md). **Read this before rebuilding an already-running server.**
 
 ### License
 
@@ -82,7 +82,6 @@ This recipe **contains no HCL software**. You bring your own LP tars from HCL Fl
 
 ### Related projects
 
-- **Full WSL2 SOP**: [`bryanHsiao/domino-container-wsl2-sop`](https://github.com/bryanHsiao/domino-container-wsl2-sop) — step-by-step WSL2 + Docker + Domino setup, with LP integration covered end-to-end
 - **Upstream**: [`HCL-TECH-SOFTWARE/domino-container`](https://github.com/HCL-TECH-SOFTWARE/domino-container)
 - **Background issue**: [HCL Issue #55](https://github.com/HCL-TECH-SOFTWARE/domino-container/issues/55)
 
@@ -92,42 +91,42 @@ This recipe **contains no HCL software**. You bring your own LP tars from HCL Fl
 
 ### 這是什麼
 
-一個小型 CLI 工具，把 patch 套到上游 `HCL-TECH-SOFTWARE/domino-container` 的 clone，讓它支援預設 6 種（DE/ES/FR/IT/NL/JA）以外的語言。Patch 範圍很小（`build.sh` 4 處、`install_domino.sh` 1 處、兩份 `software.txt`），5 分鐘就能讀完審完。
+一個小型命令列工具，對 `HCL-TECH-SOFTWARE/domino-container` 上游程式碼套用修補，讓它支援預設 6 種（DE/ES/FR/IT/NL/JA）以外的語言。修補範圍很小（`build.sh` 4 處、`install_domino.sh` 1 處、兩份 `software.txt`），5 分鐘就能讀完審完。
 
-這是**「recipe」不是「fork」**：你從上游 clone fresh，再跑我們的腳本。上游有改動時你重跑；如果 anchor 對不上，腳本會告訴你哪裡要改。**不用維護一個長期跟上游同步的 fork**。
+本工具走「**動態修補**」路線而不是「**fork**」：你從上游 clone 一份乾淨的程式碼，再跑本工具的腳本。上游有改動時你重跑就好；如果上游改到我們修補的位置、修補套不上去，腳本會明確印出「在 `build.sh` 預期找到 2 個、實際找到 0 個」這類錯誤訊息，照 [`upgrade-guide.md`](upgrade-guide.md) 微調 `patch.py` 內的字串即可（小改，不用維護整個 fork）。**不用長期跟上游同步**。
 
-→ 為什麼用 recipe 不用 fork？見 [`docs/why-recipe-not-fork.md`](docs/why-recipe-not-fork.md)。
+→ 為什麼用工具修補而不是維護 fork？見 [`docs/why-recipe-not-fork.md`](docs/why-recipe-not-fork.md)。
 
 ### 已支援語言的狀態
 
 語言定義在 [`language_registry.py`](language_registry.py)。每個語言有一個狀態：
 
-| 狀態 | 意義 | 能用 `apply-lp.sh` 套嗎？ |
+| 狀態 | 意義 | 能用 `apply-lp.sh` 套用嗎？ |
 |---|---|---|
-| `verified` | installer_code 已透過 `strings LNXDomLP \| grep LangCodeList` 驗證，且 recipe 作者或貢獻者已成功 build 過。 | ✅ 可以 |
-| `inferred` | installer_code 從對稱推論（例如 SC `zh-CN` 對應 TC `zh-TW`）。**未實測**。 | ⚠️ 需加 `--allow-inferred` |
-| `template` | 範本條目；installer_code 為 `None`，你要先補上才能用。 | ❌ 不行，先填 registry |
+| `verified` | `installer_code` 已透過 `strings LNXDomLP \| grep LangCodeList` 驗證，且作者或貢獻者已成功 build 過。 | ✅ 可以 |
+| `inferred` | `installer_code` 從對稱推論而來（例如 SC 的 `zh-CN` 對應 TC 的 `zh-TW`）。**未實測**。 | ⚠️ 需加 `--allow-inferred` |
+| `template` | 範本條目；`installer_code` 為 `None`，你要先補上才能用。 | ❌ 不行，先填語言註冊表 |
 
-目前 registry：
+目前註冊表內容：
 
 | 代號 | 狀態 | 備註 |
 |---|---|---|
 | **TC** | ✅ verified | 繁體中文，參考實作 |
-| SC | ⚠️ inferred | 簡體中文（sc → zh-CN 對稱推論）|
-| KO | 📝 template | 韓文（需用 `strings LNXDomLP` 找 installer code）|
+| SC | ⚠️ inferred | 簡體中文（從 TC 對稱推論出 `sc → zh-CN`）|
+| KO | 📝 template | 韓文（需用 `strings LNXDomLP` 找出語言內部碼）|
 
 ### 快速開始 — 繁體中文（已驗證）
 
 ```bash
-# 1. clone 本 recipe
+# 1. clone 本工具
 git clone https://github.com/bryanHsiao/domino-container-lp-recipe.git ~/lp-recipe
 
 # 2. 跑 apply-lp.sh
-#    自動 clone 上游 domino-container、checkout 到 tested commit、套 TC patch
+#    自動 clone 上游 domino-container、checkout 到測試過的 commit、對 TC 套用修補
 ~/lp-recipe/apply-lp.sh --lang TC
 
-# 3. 把 LP tar 放到 /local/software/
-#    （從 HCL FlexNet 下載；HCL 軟體不能 redistribute，所以不在 repo 內）
+# 3. 把 LP tar 檔放到 /local/software/
+#    （從 HCL FlexNet 下載；HCL 軟體不能重新散布，所以不在本 repo 內）
 
 # 4. Build
 cd /local/github/domino-container
@@ -137,31 +136,30 @@ cd /local/github/domino-container
 ~/lp-recipe/verify.sh --lang TC
 ```
 
-### 加新語言（KO / SC / TH / …）
+### 加新語言（KO / SC / TH 等）
 
 完整教學見 [`docs/adding-new-language.md`](docs/adding-new-language.md)。重點：
 
-1. 解壓 LP tar，跑 `strings LNXDomLP | grep LangCodeList` 找該語言內部碼。
-2. 在 `language_registry.py` 加條目，status 標 `"verified"`（若沒 tar 可測就標 `"inferred"`）。
+1. 解壓 LP tar 檔，跑 `strings LNXDomLP | grep LangCodeList` 找該語言的內部碼。
+2. 在 `language_registry.py` 加一筆條目，狀態標 `"verified"`（若沒 tar 可測就標 `"inferred"`）。
 3. 跑 `./apply-lp.sh --lang <代號>` 然後 build。
-4. 跑通後請發 PR 回來把 status 升級為 `verified`，造福其他人。
+4. 跑通後請發 PR 回來把狀態升級為 `verified`，造福其他人。
 
 ### ⚠️ 重要：已存在的 `/local/notesdata` 不會自動套用新 LP
 
-如果你已經對這台 server 做過 OneTouch Setup，**重 build 不會讓既有 .nsf 變繁中／韓文／其他**。Domino container 的 entrypoint 偵測到 `Data already installed for 14050100` 就會跳過 template 部署。
+如果你已經對這台 server 做過 OneTouch Setup，**重新 build 不會讓既有 .nsf 變繁中／韓文／其他語言**。Domino container 的進入點偵測到 `Data already installed for 14050100` 就會跳過範本部署。
 
-解法：fresh data dir 重做 OneTouch Setup，或對每個既有 `.nsf` 手動 Replace Design。
+解法：清空資料目錄重做 OneTouch Setup，或對每個既有 `.nsf` 手動執行 Replace Design。
 
-詳細討論見 SOP repo：[`bryanHsiao/domino-container-wsl2-sop`](https://github.com/bryanHsiao/domino-container-wsl2-sop) §12.6。
+詳細討論見 [`docs/sync-trap-caveat.md`](docs/sync-trap-caveat.md)。**對已運行的 server 重 build 之前請讀**。
 
-### License
+### 授權
 
 Apache-2.0，與上游一致。
 
-本 recipe **不含任何 HCL 軟體**。LP tar 請從 HCL FlexNet 依你自己的授權下載。
+本工具**不含任何 HCL 軟體**。LP tar 檔請依你自己的授權，從 HCL FlexNet 下載。
 
 ### 相關專案
 
-- **完整 WSL2 SOP**：[`bryanHsiao/domino-container-wsl2-sop`](https://github.com/bryanHsiao/domino-container-wsl2-sop) — 從零到完整跑通的逐步指南
 - **上游**：[`HCL-TECH-SOFTWARE/domino-container`](https://github.com/HCL-TECH-SOFTWARE/domino-container)
 - **背景 issue**：[HCL Issue #55](https://github.com/HCL-TECH-SOFTWARE/domino-container/issues/55)

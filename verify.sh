@@ -89,7 +89,7 @@ if [ -n "$CONTAINER" ]; then
       echo "  ⚠️  No non-ASCII strings in console.log. Possible causes:"
       echo "       - /local/notesdata was reused from a pre-LP setup ('Data already installed' skip)"
       echo "       - Server hasn't done much localized logging yet"
-      echo "      See SOP §12.6 'sync trap'."
+      echo "      See docs/sync-trap-caveat.md."
     fi
   else
     echo "  (skipped — container $CONTAINER not running)"

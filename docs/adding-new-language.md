@@ -135,7 +135,7 @@ The verifier checks three things:
 2. Image contains `*ko*` resource directories
 3. LP install log shows successful install
 
-If you have a running container based on a **fresh data dir** (see SOP §12.6), `verify.sh --container domino-lab` will also grep for non-ASCII strings in the server console log as a sanity check that the language is actually being used.
+If you have a running container based on a **fresh data dir** (see [`sync-trap-caveat.md`](sync-trap-caveat.md)), `verify.sh --container domino-lab` will also grep for non-ASCII strings in the server console log as a sanity check that the language is actually being used.
 
 ### Step 9 — (Optional but please!) Send a PR
 
@@ -156,7 +156,7 @@ If you only had time to verify the installer code but not run a full build, set 
 | Build dies with `Cannot find LPLog.txt` | `installer_code` wrong (your language's `LangCodeList` value differs) | Re-run Step 1, update registry, retry |
 | Build dies with `ERROR - Download for [domlp] [XX-14.5.1] not found!` | `software.txt` entry not added in container-side manifest | Confirm `dockerfiles/install_dir_common/software.txt` has the entry (apply-lp.sh adds both) |
 | Image builds but `verify.sh` says no `xx` resource directories | Wrong `installer_code`, or installer didn't actually deploy templates (rare) | Check `install_domlp.log` inside the image; look for `Installed Feature(s)` line |
-| Newly-built image works but existing server still shows English UI | "`Data already installed`" sync trap | See SOP §12.6 — needs fresh data dir |
+| Newly-built image works but existing server still shows English UI | "`Data already installed`" sync trap | See [`sync-trap-caveat.md`](sync-trap-caveat.md) — needs fresh data dir |
 
 ---
 
@@ -166,23 +166,23 @@ If you only had time to verify the installer code but not run a full build, set 
 
 加入語言 **XX**（你的新語言代號）需要做：
 
-1. **驗證 LP installer 的內部語言碼** — XX 可能對應跟 `xx` 不一樣的代號（例如 TC → zh-TW）。沒驗證的話，LP installer (LNXDomLP) 會靜默失敗，build 死在 `Cannot find LPLog.txt`。
-2. **把 XX 加入 `language_registry.py`**，status 設 `"verified"`。
-3. **跑 `./apply-lp.sh --lang XX`** 套 patch 到上游 `domino-container`。
+1. **驗證 LP 安裝程式的內部語言碼** — XX 可能對應跟 `xx` 不一樣的代號（例如 TC → zh-TW）。沒驗證的話，LP 安裝程式（LNXDomLP）會靜默失敗，build 死在 `Cannot find LPLog.txt`。
+2. **把 XX 加入 `language_registry.py`**，狀態設為 `"verified"`。
+3. **跑 `./apply-lp.sh --lang XX`** 對上游 `domino-container` 套用修補。
 4. **Build 並驗證** 出來的 image 真的含 XX。
-5. **（選擇性）發 PR** 回 recipe 造福他人。
+5. **（選擇性）發 PR** 回本工具，造福他人。
 
-挑戰不在寫 code — 在於蒐集對的 metadata。本指南逐步教你。
+挑戰不在寫程式碼 — 在於找對的設定值（語言碼、按鍵字母、SHA256 等）。本指南逐步教你怎麼蒐集這些。
 
 ### 前置條件
 
-- 對應語言的 HCL Domino LP tar（例如 `Domino_14.5.1_SLP_Korean.tar`），放在 `/local/software/`
-- 可運作的 Domino container build 環境（Docker / Podman 與本 recipe 的依賴）
+- 對應語言的 HCL Domino LP tar 檔（例如 `Domino_14.5.1_SLP_Korean.tar`），放在 `/local/software/`
+- 可運作的 Domino container build 環境（Docker / Podman 與本工具的相依套件）
 - 一個語言的完整流程大約需要 30 分鐘
 
-### 步驟 1 — 找 installer 的內部語言碼
+### 步驟 1 — 找 LP 安裝程式的內部語言碼
 
-這是最關鍵的步驟。LP installer（LNXDomLP，Java InstallAnywhere 編譯出的執行檔）內部有 `LangCodeList`，把語言對應到它的安裝代號。對 ISO-639-1 標準語言（de/es/fr/it/nl/ja/ko/th/…）通常就是 ISO 代號 lowercase。對中文是 `zh-TW` / `zh-CN`。要實際驗證。
+這是最關鍵的步驟。LP 安裝程式（LNXDomLP，是用 Java InstallAnywhere 編譯出的執行檔）內部有 `LangCodeList`，把語言對應到它的安裝代號。對 ISO-639-1 標準語言（de/es/fr/it/nl/ja/ko/th 等）通常就是 ISO 代號的小寫。對中文是 `zh-TW` / `zh-CN`。要實際驗證。
 
 ```bash
 # 解壓 LP tar 到暫存目錄
@@ -190,15 +190,15 @@ mkdir -p /tmp/lp-inspect && cd /tmp/lp-inspect
 tar xf /local/software/Domino_14.5.1_SLP_<Language>.tar
 
 # 找語言代號表
-# （把 'ko' / 'korean' 換成你目標語言相關詞）
+# （把 'ko' / 'korean' 換成你目標語言相關的字）
 strings LNXDomLP | grep -iE 'LangCodeList|^ko$|^kr$|korean'
 
-# 期待看到類似：
+# 期待看到類似這樣的輸出：
 #   LangCodeList("ko") = "KO"
 #   LangCodeList("zh-TW") = "TC"
 ```
 
-如果 LP installer 顯示 `LangCodeList("ko") = "KO"`，那 **installer_code 就是 `ko`**。記下來。
+如果 LP 安裝程式顯示 `LangCodeList("ko") = "KO"`，那 **`installer_code` 就是 `ko`**。記下來。
 
 找不到明確的話，試更廣的 grep：
 
@@ -206,32 +206,32 @@ strings LNXDomLP | grep -iE 'LangCodeList|^ko$|^kr$|korean'
 strings LNXDomLP | grep -iE 'languages_00|languagepack|installLP|lang.*korean'
 ```
 
-### 步驟 2 — 挑 keypress 字母
+### 步驟 2 — 挑按鍵字母
 
-`build.sh` 的 LP 子選單每個語言有一個按鍵字母。目前用掉的：`d` (DE), `e` (ES), `f` (FR), `i` (IT), `n` (NL), `j` (JA), `t` (TC，本 recipe 加的)。
+`build.sh` 的 LP 子選單每個語言對應一個按鍵字母。目前用掉的：`d`（DE）、`e`（ES）、`f`（FR）、`i`（IT）、`n`（NL）、`j`（JA）、`t`（TC，本工具加的）。
 
 韓文 `k` 很自然。挑字母原則：
 - 不跟現有重複
-- 不是 `0`（取消）或 `q`（Quit，雖然這是主 menu 用、子 menu 沒用 q）
+- 不是 `0`（取消）或 `q`（離開，雖然這是主選單用、子選單沒用到 q）
 - 跟語言名稱有英文記憶連結即可
 
-### 步驟 3 — 算 tar 的 SHA256（建議但非必要）
+### 步驟 3 — 算 tar 檔的 SHA256（建議但非必要）
 
 ```bash
 sha256sum /local/software/Domino_14.5.1_SLP_<Language>.tar
 ```
 
-`build.sh` 預設 `CHECK_HASH=`（空 / 關），所以不嚴格需要。但為了可重現、為了未來有人開 `CHECK_HASH=yes`，請填。
+`build.sh` 預設 `CHECK_HASH=`（空／關），所以不嚴格需要。但為了可重現、為了未來有人開 `CHECK_HASH=yes`，請填上去。
 
-### 步驟 4 — 決定 `hcl_id` 的 placeholder
+### 步驟 4 — 決定 `hcl_id` 預留值
 
-HCL 真實的 5 字 ID（`software.txt` 第 4 欄）對外不公開。本 recipe 對 TC 用 `TChineseManualEntry01`；你也可以類比。`build.sh` 不驗這欄 — 它是個 opaque 識別字串。
+HCL 真實的 5 字 ID（`software.txt` 第 4 欄）對外不公開。本工具對 TC 用 `TChineseManualEntry01`；你也可以類比。`build.sh` 不會驗證這欄 — 它是個不透明的識別字串。
 
 慣例：`<Lang>ManualEntry01` 或 `<Lang>Community01`。
 
 ### 步驟 5 — 加進 `language_registry.py`
 
-打開 `language_registry.py`，在 `LANGUAGES` dict 加條目：
+打開 `language_registry.py`，在 `LANGUAGES` 字典加一筆條目：
 
 ```python
 LANGUAGES = {
@@ -253,18 +253,18 @@ LANGUAGES = {
 }
 ```
 
-### 步驟 6 — 套用 patch
+### 步驟 6 — 套用修補
 
 ```bash
 ./apply-lp.sh --lang KO
 ```
 
 腳本會：
-1. 把 patched 檔案還原為 vanilla
+1. 把已修補的檔案還原為原版
 2. 跑 `patch.py --lang KO`
 3. 印出 build 指令給你
 
-如果 `apply-lp.sh` 抱怨 anchor 對不上，可能你的上游 commit 比 tested commit 更新 — 見 [`../upgrade-guide.md`](../upgrade-guide.md)。
+如果 `apply-lp.sh` 抱怨錨點對不上，可能你的上游 commit 比測試過的 commit 更新 — 見 [`../upgrade-guide.md`](../upgrade-guide.md)。
 
 ### 步驟 7 — Build
 
@@ -273,7 +273,7 @@ cd /local/github/domino-container
 ./build.sh domino 14.5.1 -restapi=1.1.7 -leap=1.1.10 -domlp=KO
 ```
 
-典型 build 時間 5–6 分鐘。關注：
+典型 build 時間 5–6 分鐘。注意關鍵 log：
 - `Installing Language Pack KO-14.5.1 (KO)`
 - `Selected Language Packs are successfully installed.`
 - `naming to docker.io/hclcom/domino:14.5.1 done`
@@ -285,29 +285,29 @@ cd /local/github/domino-container
 ```
 
 驗證三件事：
-1. Image label `DominoContainer.addons` 包含 `languagepack=KO`
+1. Image 標籤 `DominoContainer.addons` 包含 `languagepack=KO`
 2. Image 含 `*ko*` 資源目錄
-3. LP install log 顯示安裝成功
+3. LP 安裝紀錄顯示安裝成功
 
-如果你有 container 跑在 **fresh data dir** 上（見 SOP §12.6），`verify.sh --container domino-lab` 還會 grep server console log 的非 ASCII 字串，作為「語言真的在跑」的 sanity check。
+如果你有 container 跑在 **乾淨的資料目錄** 上（見 [`sync-trap-caveat.md`](sync-trap-caveat.md)），`verify.sh --container domino-lab` 還會用 grep 找 server console log 內的非 ASCII 字串，當作「語言真的在運作」的旁證。
 
 ### 步驟 9 —（選擇性但很歡迎！）發 PR
 
 幫其他想用這語言的人：
 
 1. Fork `bryanHsiao/domino-container-lp-recipe`
-2. 在 `language_registry.py` 加你的語言（status: `verified`）
+2. 在 `language_registry.py` 加你的語言（狀態：`verified`）
 3. 在 `tested-against.md` 加一列
 4. 開 PR，簡短說明：「Add Korean LP support (verified on Domino 14.5.1)」
 
-如果你只能驗證 installer code 但沒時間跑完整 build，設 status 為 `"inferred"` 並在 PR 寫明 — 這對其他人仍有幫助。
+如果你只能驗證 `installer_code` 但沒時間跑完整 build，把狀態設為 `"inferred"` 並在 PR 寫明 — 這對其他人仍有幫助。
 
 ### 疑難排解
 
 | 症狀 | 可能原因 | 解法 |
 |---|---|---|
-| `apply-lp.sh` 結束顯示「expected N matches, found 0」 | 上游改了 anchored 區段 | 見 [`../upgrade-guide.md`](../upgrade-guide.md) |
-| Build 死在 `Cannot find LPLog.txt` | `installer_code` 不對（該語言的 `LangCodeList` 值不一樣）| 重做步驟 1、更新 registry、重試 |
-| Build 死在 `ERROR - Download for [domlp] [XX-14.5.1] not found!` | container 端 manifest 沒加條目 | 確認 `dockerfiles/install_dir_common/software.txt` 有條目（apply-lp.sh 會同時加兩份）|
-| Image build 成功但 `verify.sh` 找不到 `xx` 資源目錄 | `installer_code` 不對，或 installer 沒實際部署 templates（罕見）| 進 image 內看 `install_domlp.log`，找 `Installed Feature(s)` 那行 |
-| 新 build 的 image 跑起來、但既有 server 介面仍英文 | 「Data already installed」同步陷阱 | 見 SOP §12.6 — 需要 fresh data dir |
+| `apply-lp.sh` 結束顯示「expected N matches, found 0」 | 上游改了錨點所在的區段 | 見 [`../upgrade-guide.md`](../upgrade-guide.md) |
+| Build 死在 `Cannot find LPLog.txt` | `installer_code` 不對（該語言在 `LangCodeList` 內的值不同）| 重做步驟 1、更新註冊表、重試 |
+| Build 死在 `ERROR - Download for [domlp] [XX-14.5.1] not found!` | container 端清單檔沒加條目 | 確認 `dockerfiles/install_dir_common/software.txt` 有條目（`apply-lp.sh` 會同時加兩份）|
+| Image build 成功但 `verify.sh` 找不到 `xx` 資源目錄 | `installer_code` 不對，或安裝程式沒實際部署範本（罕見）| 進 image 內看 `install_domlp.log`，找 `Installed Feature(s)` 那行 |
+| 新 build 的 image 跑起來、但既有 server 介面仍英文 | 「Data already installed」同步陷阱 | 見 [`sync-trap-caveat.md`](sync-trap-caveat.md) — 需要清空資料目錄 |
