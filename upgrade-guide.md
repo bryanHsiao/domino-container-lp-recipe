@@ -86,6 +86,37 @@ If HCL merges a PR that natively supports TC/SC/KO etc. in `build.sh menu`, this
 
 That'd be a happy outcome. The companion `PR-DRAFT-tc.md` and `PR-DRAFT-framework.md` are this recipe's contribution toward making that happen.
 
+### R12 FP CLI arg gotcha (12.0.2FP*, 12.0.1FP*)
+
+If you build R12 with a fix pack, **you MUST pass the FP as a separate arg**:
+
+```bash
+# ✅ CORRECT
+./build.sh domino 12.0.2 fp8 -restapi=1.1.7 -domlp=TC
+
+# ❌ WRONG — silently swallows FP into version, then fails at install
+./build.sh domino 12.0.2FP8 -restapi=1.1.7 -domlp=TC
+```
+
+**Why**: upstream `build.sh` CLI matches version arg with `case`:
+
+```
+9*|10*|11*|12*|14*|v12*|v14*) PROD_VER=$a ;;
+```
+
+Passing `12.0.2FP8` gets swallowed whole into `PROD_VER`, and `PROD_FP` stays empty. The R12 FP tar (`Domino_1202FPn_Linux.tar`) is a **patch-only tar** with the installer at `linux64/domino/install` (not `linux64/install`). With empty `PROD_FP`, `install_domino.sh` treats the FP tar as if it were the base GA installer, fails to find `./install` under `linux64/`, and errors:
+
+```
+/tmp/install/install_domino.sh: line 228: ./install: No such file or directory
+ERROR - Domino Installation failed - Cannot find installer log
+```
+
+The separate `fp*)` CLI matcher (undocumented in `-h`) sets `PROD_FP=FP8`, which then makes `install_domino.sh` download BOTH the GA and FP tars and apply the FP layer correctly.
+
+**Impact on `DOMLP_VER`**: with correct FP arg, `PROD_VER=12.0.2` (not `12.0.2FP8`), so `DOMLP_VER=TC-12.0.2` — this matches the `manifest_entries["12.0.2"]` in `language_registry.py`. If you pass FP wrong, `DOMLP_VER=TC-12.0.2FP8` won't match and LP gets skipped.
+
+R14 tars (14.5, 14.5.1) don't hit this because they don't have separate FP releases — everything is in the base tar.
+
 ---
 
 ## 繁體中文
@@ -171,3 +202,34 @@ grep 'domlp|TC-14.5.1' software/software.txt                          # 預期: 
 3. 從 GitHub 介面封存這個 repo
 
 那會是最好的結局。本 repo 內的 `PR-DRAFT-tc.md` 和 `PR-DRAFT-framework.md` 就是本工具對「促成這結局」的貢獻。
+
+### R12 FP CLI arg 陷阱（12.0.2FP*, 12.0.1FP*）
+
+要 build R12 帶 FP 時，**必須把 FP 當獨立 arg 傳**：
+
+```bash
+# ✅ 正確
+./build.sh domino 12.0.2 fp8 -restapi=1.1.7 -domlp=TC
+
+# ❌ 錯誤 — FP 會被吞進 version、然後在 install 階段炸掉
+./build.sh domino 12.0.2FP8 -restapi=1.1.7 -domlp=TC
+```
+
+**原因**：上游 `build.sh` CLI 用 case regex 比對版本 arg：
+
+```
+9*|10*|11*|12*|14*|v12*|v14*) PROD_VER=$a ;;
+```
+
+傳 `12.0.2FP8` 整串會被 `12*` 吃掉塞進 `PROD_VER`，`PROD_FP` 保持空。R12 的 FP tar（`Domino_1202FPn_Linux.tar`）是 **patch-only tar**、內含的 `install` 執行檔在 `linux64/domino/install`（不在 `linux64/install`）。`PROD_FP` 空時、`install_domino.sh` 把 FP tar 當 base GA installer 處理、找不到 `linux64/install`、噴：
+
+```
+/tmp/install/install_domino.sh: line 228: ./install: No such file or directory
+ERROR - Domino Installation failed - Cannot find installer log
+```
+
+分開傳（`fp*)` 是獨立 CLI matcher，`-h` 內沒列）會設 `PROD_FP=FP8`、然後 `install_domino.sh` 就會**分別下載 GA + FP tar、把 FP 疊上去**的正確流程。
+
+**對 `DOMLP_VER` 的影響**：分開傳 FP 時 `PROD_VER=12.0.2`（不是 `12.0.2FP8`），所以 `DOMLP_VER=TC-12.0.2` — 這對到 `language_registry.py` 內 `manifest_entries["12.0.2"]` 條目。傳錯的話 `DOMLP_VER=TC-12.0.2FP8` 對不到、LP 就會被 skip。
+
+R14 tar（14.5、14.5.1）不會踩這個坑，因為它們沒有分開的 FP release、所有 patch 都在 base tar 內。
