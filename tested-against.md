@@ -9,6 +9,7 @@ This recipe is validated against the combinations below. Each row represents one
 | Recipe ver | Upstream commit | Domino | Language | OS | Container engine | Result | Notes |
 |---|---|---|---|---|---|---|---|
 | v0.1 | [`4734801`](https://github.com/HCL-TECH-SOFTWARE/domino-container/commit/4734801) | 14.5.1 | **TC** | Ubuntu 24.04.4 (WSL2) | Docker 29.4.3 | ✅ Build + fresh-setup verified | `names.nsf` in Traditional Chinese; console.log contains 「網域監督」 |
+| v0.1 | [`4734801`](https://github.com/HCL-TECH-SOFTWARE/domino-container/commit/4734801) | 12.0.2 FP8 | **TC** | Ubuntu 24.04.4 (WSL2) | Docker 29.7.2 | ✅ Build + additional-server setup verified | R12 with FP8. CLI MUST pass FP as separate arg: `./build.sh domino 12.0.2 fp8 -restapi=1.1.7 -domlp=TC`. See `upgrade-guide.md` §「R12 FP CLI arg gotcha」. Verified via TLS Credential + certstore.nsf HTTPS 443/8880 |
 
 ### What "verified" means
 
@@ -41,6 +42,7 @@ If you've successfully used this recipe with a new combination (newer Domino, di
 | 工具版本 | 上游 commit | Domino | 語言 | 作業系統 | 容器引擎 | 結果 | 備註 |
 |---|---|---|---|---|---|---|---|
 | v0.1 | [`4734801`](https://github.com/HCL-TECH-SOFTWARE/domino-container/commit/4734801) | 14.5.1 | **TC** | Ubuntu 24.04.4 (WSL2) | Docker 29.4.3 | ✅ Build + 重做 setup 驗證過 | `names.nsf` 顯示繁中；`console.log` 含「網域監督」|
+| v0.1 | [`4734801`](https://github.com/HCL-TECH-SOFTWARE/domino-container/commit/4734801) | 12.0.2 FP8 | **TC** | Ubuntu 24.04.4 (WSL2) | Docker 29.7.2 | ✅ Build + additional-server setup 驗證過 | R12 帶 FP8。CLI **必須把 FP 當獨立 arg 傳**：`./build.sh domino 12.0.2 fp8 -restapi=1.1.7 -domlp=TC`。詳見 `upgrade-guide.md`「R12 FP CLI arg gotcha」段。有補 TLS Credential + certstore.nsf HTTPS 443/8880 驗證 |
 
 ### 「驗證過」是什麼意思
 

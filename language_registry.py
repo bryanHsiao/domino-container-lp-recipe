@@ -71,6 +71,11 @@ LANGUAGES = {
                 "hcl_id": "TChineseManualEntry01",
                 "sha256": "b60deaab0651525e56f85f0d725c646702a806ef75bd0ad6405f30f74e2986d9",
             },
+            "12.0.2": {
+                "tar": "Domino_12.0.2_SLP_TChinese.tar",
+                "hcl_id": "TChineseManualEntry01",
+                "sha256": "43ba284161dfb14d05e76f2632b261a68391305226eb3d755f54b196643c80af",
+            },
         },
     },
 
